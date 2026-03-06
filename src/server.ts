@@ -162,6 +162,13 @@ export class TQP {
   ): Promise<unknown> {
     if (data === null || data === undefined || typeof data !== "object") return data;
 
+    // For arrays, apply resolvers to each item
+    if (Array.isArray(data)) {
+      return Promise.all(
+        data.map((item) => this.runResolvers(item, fields, resolvers, input))
+      );
+    }
+
     const obj = { ...(data as Record<string, unknown>) };
 
     for (const [fieldName, selector] of Object.entries(fields)) {
