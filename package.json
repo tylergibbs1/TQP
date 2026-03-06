@@ -1,0 +1,32 @@
+{
+  "name": "tqp",
+  "version": "0.1.0",
+  "description": "Typed Query Protocol — field selection, typed resources, and agent-aware metadata for AI agent-tool communication",
+  "module": "src/index.ts",
+  "main": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "tqp": "./src/cli/index.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client/index.ts",
+    "./servers/filesystem": "./src/servers/filesystem.ts",
+    "./servers/sqlite": "./src/servers/sqlite.ts",
+    "./servers/github": "./src/servers/github.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "dev": "bun run --watch src/index.ts",
+    "tqp": "bun run src/cli/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}
