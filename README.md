@@ -1,4 +1,4 @@
-# TQP — Typed Query Protocol
+# TQP: Typed Query Protocol
 
 A lightweight agent-tool protocol with **field selection**, **typed resources**, **lazy resolvers**, and **agent-aware metadata**. TQP gives AI agents a structured, cost-aware interface to your data so they can make better decisions about what to request.
 
@@ -23,6 +23,61 @@ get_user("alice", _fields: { name: true, email: true }) → { name: "Alice", ema
 - **Safety built-in** — `safe`, `confirm`, `dry_run` are protocol-level, not per-tool afterthoughts
 - **Input hardening** — Path traversal, control char, and injection protection at the framework level
 - **MCP bridge** — Expose any TQP server as MCP tools for backward compatibility
+
+## Quick start
+
+TQP runs on [Bun](https://bun.sh). It isn't published to npm; install it from GitHub:
+
+```bash
+bun add github:tylergibbs1/TQP
+```
+
+### Define a server
+
+```typescript
+import { TQP } from "tqp";
+
+const server = new TQP({ name: "my-api", description: "My API" });
+
+server.type("User", {
+  id:       { type: "string" },
+  name:     { type: "string" },
+  email:    { type: "string" },
+  bio:      { type: "string", cost: "high" },
+  posts:    { type: "list:Post", cost: "high" },
+});
+
+server.action("get_user", {
+  description: "Get a user by ID",
+  input: { id: { type: "string", required: true } },
+  returns: "User",
+  safe: true,
+  handler: async ({ id }) => {
+    return { id, name: "Alice", email: "alice@co.com", bio: "", posts: [] };
+  },
+  resolve: {
+    bio: async ({ id }) => fetchBioFromDB(id),       // Only runs if bio requested
+    posts: async ({ id }) => fetchPostsFromDB(id),    // Only runs if posts requested
+  },
+});
+
+server.listen({ transport: "http", port: 3000 });
+```
+
+### Call from a client
+
+```typescript
+import { TQPClient } from "tqp/client";
+
+const client = new TQPClient("http://localhost:3000");
+
+// Get only name and email — bio and posts resolvers never run
+const res = await client.call("get_user", {
+  input: { id: "alice" },
+  fields: { name: true, email: true },
+});
+// → { name: "Alice", email: "alice@co.com" }
+```
 
 ## Benchmarks
 
@@ -150,59 +205,6 @@ bun run bench/run-crm.ts                    # Run benchmark
 # E-commerce benchmark (scale + multi-turn + write ops)
 TQP_PORT=3030 bun run bench/heavy-tqp.ts &  # Start server on :3030
 bun run bench/run-heavy.ts                    # Run benchmark
-```
-
-## Quick start
-
-```bash
-bun add tqp
-```
-
-### Define a server
-
-```typescript
-import { TQP } from "tqp";
-
-const server = new TQP({ name: "my-api", description: "My API" });
-
-server.type("User", {
-  id:       { type: "string" },
-  name:     { type: "string" },
-  email:    { type: "string" },
-  bio:      { type: "string", cost: "high" },
-  posts:    { type: "list:Post", cost: "high" },
-});
-
-server.action("get_user", {
-  description: "Get a user by ID",
-  input: { id: { type: "string", required: true } },
-  returns: "User",
-  safe: true,
-  handler: async ({ id }) => {
-    return { id, name: "Alice", email: "alice@co.com", bio: "", posts: [] };
-  },
-  resolve: {
-    bio: async ({ id }) => fetchBioFromDB(id),       // Only runs if bio requested
-    posts: async ({ id }) => fetchPostsFromDB(id),    // Only runs if posts requested
-  },
-});
-
-server.listen({ transport: "http", port: 3000 });
-```
-
-### Call from a client
-
-```typescript
-import { TQPClient } from "tqp/client";
-
-const client = new TQPClient("http://localhost:3000");
-
-// Get only name and email — bio and posts resolvers never run
-const res = await client.call("get_user", {
-  input: { id: "alice" },
-  fields: { name: true, email: true },
-});
-// → { name: "Alice", email: "alice@co.com" }
 ```
 
 ## Protocol specification
@@ -534,7 +536,7 @@ Expose any TQP server as MCP-compatible tools for backward compatibility with MC
 
 ```typescript
 import { TQP } from "tqp";
-import { MCPBridge } from "tqp/mcp-bridge";
+import { MCPBridge } from "tqp";
 
 const server = new TQP({ name: "my-api", description: "My API" });
 // ... register types and actions ...
@@ -688,7 +690,7 @@ export type ActionName = "get_user" | "list_users";
 Generate a structured prompt that teaches an agent how to use your TQP server:
 
 ```typescript
-import { generateAgentPrompt } from "tqp/prompt";
+import { generateAgentPrompt } from "tqp";
 
 const prompt = generateAgentPrompt(manifest);
 // Returns a markdown document with:
@@ -716,9 +718,10 @@ tests/            — 91 tests
 bench/            — Benchmark suite (HN + CRM + E-commerce, TQP vs MCP)
 ```
 
-## Commands
+## Development
 
 ```bash
+bun install
 bun test                                    # Run all tests
 bun run src/cli/index.ts                    # Run CLI
 bun run src/servers/filesystem.ts [root]    # Filesystem server
